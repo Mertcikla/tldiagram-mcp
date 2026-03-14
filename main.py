@@ -24,6 +24,7 @@ from typing import Optional
 import httpx
 import redis as redis_lib
 from fastmcp import FastMCP
+from pydantic import Field
 
 # ── Server ─────────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ tlDiagram is a C4-inspired interactive software architecture diagramming tool.
 ## Available tools
 
 - **get_org** — Retrieve your organisation's slug (required for all other tools).
-- **create_diagram** — Create a new diagram canvas. Returns a diagram_slug.
+- **create_diagram** — Create a new diagram canvas. Returns a diagram.
 - **add_node** — Place an architectural component on a diagram. Returns a node_slug.
 - **connect_nodes** — Draw a directed edge between two nodes on the same diagram.
 
@@ -253,15 +254,16 @@ def create_diagram(org_slug: str, name: str, description: Optional[str] = None, 
 
     Args:
         org_slug: Slug of the organisation. Obtain with get_org().
-        name: Human-readable name of the diagram (e.g. "User Service: Component View").
+        name: Human-readable name of the diagram (e.g. "Core", "Data Ingestion", ).
         description: Optional longer description of what this diagram represents.
-        level_label: Optional C4 abstraction level (e.g. "System", "Container", "Component", "Code").
-        parent_diagram_slug: Optional slug of an existing diagram to nest this one under,
-                             enabling drill-down navigation in the UI.
+        level_label: Optional abstraction level (e.g. "Package", "Class", "Library", "Component", "Framework").
+        parent_diagram: Optional but necessary to show the abstraction level of the diagram.
+                             If not provided, the diagram will be created at the root level.
+
 
     Returns:
         A dict with:
-          - diagram_slug: use this as diagram_slug in add_node and connect_nodes
+          - diagram: use this as diagram in add_node and connect_nodes
           - name, description, level_label, created_at, updated_at
     """
     org_uuid = resolve_org_slug(org_slug)
@@ -277,7 +279,7 @@ def create_diagram(org_slug: str, name: str, description: Optional[str] = None, 
     cache_diagram(org_slug, diagram_slug, diagram_uuid)
 
     return {
-        "diagram_slug": diagram_slug,
+        "diagram": diagram_slug,
         "name": diagram.get("name"),
         "description": diagram.get("description"),
         "level_label": diagram.get("levelLabel"),
@@ -289,7 +291,7 @@ def create_diagram(org_slug: str, name: str, description: Optional[str] = None, 
 @mcp.tool
 def add_node(
     org_slug: str,
-    diagram_slug: str,
+    diagram: str,
     name: str,
     type: str,
     description: Optional[str] = None,
@@ -298,58 +300,59 @@ def add_node(
     tags: Optional[list[str]] = None,
 ) -> dict:
     """
-    Create an architectural node and place it on a diagram.
+    Create a node to represent an object or an entity in the codebase and place it on a diagram.
+    At high or root level these could be a  Repository, Package, Library, Framework, Microservice, Module, Application
+    At medium level these could be a File, Class, Interface, Function, Method, Component, Actor
+    At low level these could be a Variable, Constant, Data Structure, Queue, Field, Endpoint
 
-    The node is first registered in the organisation's global object registry,
-    then placed on the specified diagram.
 
     Args:
         org_slug: Slug of the organisation. Obtain with get_org().
-        diagram_slug: Slug of the target diagram. Obtain from create_diagram().
-        name: Human-readable name (e.g. "API Gateway", "Users DB"). Required.
+        diagram: Target diagram. Obtain from create_diagram().
+        name: Human-readable, recognizable identifier of this node. Required.
         type: Node type: "class", "function", "module", "method", "database",
               "queue", "actor", "interface", "object", "component", "system", "container".
               Required.
-        description: Optional description of this component's responsibilities.
-        technology: Optional primary technology (e.g. "Go", "PostgreSQL", "React").
-        url: Optional URL or relative path within the codebase, source, or runbook.
+        description: Optional description of this node, its role or function details go here.
+        technology: Optional primary technology if applicable (e.g. "Go", "PostgreSQL", "React").
+        url: Optional URL or relative path within the codebase.
         tags: Optional freeform tags (e.g. ["backend", "critical"]).
 
     Returns:
         A dict with:
-          - node_slug: use this as source_node_slug / target_node_slug in connect_nodes
+          - node: use this as source_node / target_node in connect_nodes
           - name, type, description, technology, tags
     """
     org_uuid = resolve_org_slug(org_slug)
-    diagram_uuid = resolve_diagram_slug(org_slug, diagram_slug)
+    diagram_uuid = resolve_diagram_slug(org_slug, diagram)
 
     result = _rpc(
         "AddNode", {"orgId": org_uuid, "diagramId": diagram_uuid, "name": name, "type": type, "description": description, "technology": technology, "url": url, "tags": tags}
     )
 
-    node = result.get("node", result)
-    node_uuid: str = node["id"]
+    node_object = result.get("node", result)
+    node_uuid: str = node_object["id"]
 
     base_slug = slugify(name)
     node_slug = _unique_slug(base_slug, lambda s: _node_slug_exists(org_slug, s))
     cache_node(org_slug, node_slug, node_uuid)
 
     return {
-        "node_slug": node_slug,
-        "name": node.get("name"),
-        "type": node.get("type"),
-        "description": node.get("description"),
-        "technology": node.get("technology"),
-        "tags": node.get("tags"),
+        "node": node_slug,
+        "name": node_object.get("name"),
+        "type": node_object.get("type"),
+        "description": node_object.get("description"),
+        "technology": node_object.get("technology"),
+        "tags": node_object.get("tags"),
     }
 
 
 @mcp.tool
 def connect_nodes(
     org_slug: str,
-    diagram_slug: str,
-    source_node_slug: str,
-    target_node_slug: str,
+    diagram: str,
+    source_node: str,
+    target_node: str,
     label: Optional[str] = None,
     description: Optional[str] = None,
     relationship_type: Optional[str] = None,
@@ -364,20 +367,20 @@ def connect_nodes(
 
     Args:
         org_slug: Slug of the organisation.
-        diagram_slug: Slug of the diagram containing both nodes.
-        source_node_slug: Slug of the source node (from add_node).
-        target_node_slug: Slug of the target node (from add_node).
-        label: Short label shown on the edge (e.g. "fetch data", "write", "calculate", "publish events").
+        diagram: The diagram containing both nodes.
+        source_node: Source node identifier (from add_node).
+        target_node: Target node identifier (from add_node).
+        label: Short label shown on the edge (e.g. "fetch data", "depends_on", "write", "calls", "publish events").
         description: Longer description of the relationship.
         direction: "forward" (default, source→target), "backward", "both", or "none".
-        url: Optional URL for source file or documentation.
+        url: Optional remote url or relative path to the related resource.
 
     Returns:
-        A dict with edge details using slugs instead of UUIDs.
+        A dict with edge details.
     """
-    diagram_uuid = resolve_diagram_slug(org_slug, diagram_slug)
-    source_uuid = resolve_node_slug(org_slug, source_node_slug)
-    target_uuid = resolve_node_slug(org_slug, target_node_slug)
+    diagram_uuid = resolve_diagram_slug(org_slug, diagram)
+    source_uuid = resolve_node_slug(org_slug, source_node)
+    target_uuid = resolve_node_slug(org_slug, target_node)
 
     result = _rpc(
         "ConnectNodes",
@@ -395,9 +398,9 @@ def connect_nodes(
 
     edge = result.get("edge", result)
     return {
-        "diagram_slug": diagram_slug,
-        "source_node_slug": source_node_slug,
-        "target_node_slug": target_node_slug,
+        "diagram": diagram,
+        "source_node": source_node,
+        "target_node": target_node,
         "label": edge.get("label"),
         "description": edge.get("description"),
         "direction": edge.get("direction"),
@@ -406,7 +409,7 @@ def connect_nodes(
 
 
 @mcp.prompt(name="create_codebase_diagram", description="Create a diagram based on the structure of a code repository.")
-def create_codebase_diagram(repo_url: str, diagram_name: str, diagram_description: Optional[str] = None): ...
+def create_codebase_diagram(repo_path: str = Field(description="Local or remote path to the code repository.")): ...
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
