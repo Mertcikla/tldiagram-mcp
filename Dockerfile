@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Copy dependency files and install (cached layer)
 COPY pyproject.toml ./
-RUN uv pip install --system fastmcp>=2.3.0 httpx>=0.27.0
+RUN uv pip install -r pyproject.toml --no-cache-dir --system
 
 # Copy source
 COPY main.py ./

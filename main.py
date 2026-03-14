@@ -355,9 +355,7 @@ def connect_nodes(
     target_node: str,
     label: Optional[str] = None,
     description: Optional[str] = None,
-    relationship_type: Optional[str] = None,
     direction: Optional[str] = None,
-    edge_type: Optional[str] = None,
     url: Optional[str] = None,
 ) -> dict:
     """
@@ -409,7 +407,46 @@ def connect_nodes(
 
 
 @mcp.prompt(name="create_codebase_diagram", description="Create a diagram based on the structure of a code repository.")
-def create_codebase_diagram(repo_path: str = Field(description="Local or remote path to the code repository.")): ...
+def create_codebase_diagram(repo_path: str = Field(description="Local or remote path to the code repository.")):
+    instruction = f"""
+    # Role:
+    You are a senior software architect and documentation specialist.
+    Use your expertise to create clear, concise architecture diagrams that capture the core structure and key flows of our codebase.
+    Your mission is to explore this codebase in {repo_path} using the tools available in your current environment (file browsing, search, read-file, repo indexing).
+    Prioritize reads: Start with the most critical files first (entry points, core modules, configs, database models, major features).
+
+    Produce 5–25 topological diagrams (one per key flow or responsibility) that help any new team member understand the real core of our codebase in under 5 minutes.
+    Start with the highest-level, most abstract diagrams (e.g. main user flow, core microservices, critical domain).
+    Cluster the complex systems into at max 20 nodes. Then create a separate diagram with same object to drill down into details.
+    Focus exclusively on crucial objects — business logic, main data flows, key decisions, public APIs, and critical integrations.
+    Ignore everything else: no logging, no config files, no error handlers, no tests, no boilerplate, no generated code.
+
+    Choose 1–10 Root-Level Diagrams. Decide on the number based on the complexity of the system and how many distinct “views” are needed to cover the essentials.
+
+    Pick the most important “views” of the system. Good examples:
+    Main User Flow (e.g. “Order Placement”)
+    Core Microservice Architecture
+    Authentication Flow
+    Data Pipeline / Background Job
+    External Integration (e.g. Payment Gateway)
+    Startup / Boot Sequence
+
+
+    For each diagram, build 3–20 nodes total
+    At high or root level these could be a Repository, Package, Library, Framework, Microservice, Module, Application
+    At medium level these could be a File, Class, Interface, Function, Method, Component, Actor
+    At low level these could be a Variable, Constant, Data Structure, Queue, Field, Endpoint
+
+    If a node is referenced multiple times, create it once and reuse it across diagrams to show how different parts of the system connect to the same core concepts.
+
+    Connect the nodes with a clear edge label to represent the interaction (e.g. "fetch data", "depends_on", "write", "calls", "publish events")
+
+    These could be relationships like: contains, depends_on, imports, calls, inherits_from, returns, uses, references.
+
+    Title each diagram clearly (e.g. “Order Placement Flow”)
+    Use 1-sentence caption for description of each diagram/node/edge.
+    """
+    return instruction
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
