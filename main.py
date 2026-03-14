@@ -382,16 +382,7 @@ def connect_nodes(
 
     result = _rpc(
         "ConnectNodes",
-        {
-            "diagramId": diagram_uuid,
-            "sourceNodeId": source_uuid,
-            "targetNodeId": target_uuid,
-            "label": label,
-            "description": description,
-            "direction": direction,
-            "edgeType": edge_type,
-            "url": url,
-        },
+        {"diagramId": diagram_uuid, "sourceNodeId": source_uuid, "targetNodeId": target_uuid, "label": label, "description": description, "direction": direction, "url": url},
     )
 
     edge = result.get("edge", result)
@@ -407,11 +398,24 @@ def connect_nodes(
 
 
 @mcp.prompt(name="create_codebase_diagram", description="Create a diagram based on the structure of a code repository.")
-def create_codebase_diagram(repo_path: str = Field(description="Local or remote path to the code repository.")):
+def create_codebase_diagram(
+    repo_path: str = Field(description="Local or remote path to the code repository."),
+    username: str = Field(default="admin", description="Username for authentication (if needed)."),
+    password: str = Field(default="password", description="Password for authentication (if needed)."),
+) -> str:
     instruction = f"""
     # Role:
     You are a senior software architect and documentation specialist.
     Use your expertise to create clear, concise architecture diagrams that capture the core structure and key flows of our codebase.
+    Then use the tool available in your current environment to create the diagrams programmatically.
+    A typical step-by-step process is like this:
+
+    1 - get org_slug from tool get_org() with username: {username} and password: {password}.
+    2 - use tool create_diagram().
+    3 - use tool add_node() for the crucial objects you identify in the codebase (business logic, main data flows, key decisions, public APIs, critical integrations).
+    4 - use tool connect_nodes() to define the relationships between those objects.
+    5 - Repeat steps 2–4 to create multiple diagrams for different views or levels of abstraction, reusing nodes where they appear in multiple contexts.
+
     Your mission is to explore this codebase in {repo_path} using the tools available in your current environment (file browsing, search, read-file, repo indexing).
     Prioritize reads: Start with the most critical files first (entry points, core modules, configs, database models, major features).
 
