@@ -125,12 +125,15 @@ tlDiagram is a C4-inspired interactive software architecture diagramming tool.
 - **create_diagram** — Create a new diagram canvas. Returns a diagram slug.
 - **add_node** — Place an architectural component on a diagram. Returns a node_slug.
 - **connect_nodes** — Draw a directed edge between two nodes on the same diagram.
+- **create_parent_diagram** — Link a node on a parent diagram to the current diagram.
+- **create_child_diagram** — Link a node on the current diagram to a child diagram.
 
 ## Typical workflow
 
 1. Call `create_diagram` to create a canvas and get a diagram_slug.
 2. Call `add_node` multiple times to place components; collect each returned node_slug.
 3. Call `connect_nodes` to define relationships between nodes.
+4. Call `create_child_diagram` or `create_parent_diagram` to link nodes to other diagrams for drilling down.
 
 ## Node types
 
@@ -429,6 +432,106 @@ def connect_nodes(
         "description": edge.get("description"),
         "direction": edge.get("direction"),
         "created_at": edge.get("createdAt"),
+    }
+
+
+@mcp.tool
+def create_parent_diagram(
+    ctx: Context,
+    api_key: str,
+    diagram: str,
+    node: str,
+    parent_diagram: str,
+) -> dict:
+    """
+    Link an existing node on a parent diagram to the current diagram.
+    The node must already be placed on the parent diagram.
+
+    Args:
+        api_key: tlDiagram API key (diag_sk_<hex>)
+        diagram: The child diagram (the one you are currently linking to).
+        node: The node identifier on the parent diagram.
+        parent_diagram: The parent diagram identifier.
+
+    Returns:
+        A dict with link details.
+    """
+    token_data = auth.verify_token(api_key)
+    if not isinstance(token_data, dict):
+        raise RuntimeError("Unauthorized: invalid API key.")
+
+    org_uuid, org_slug = str(token_data.get("org_uuid")), str(token_data.get("org_slug"))
+    diagram_uuid = resolve_diagram_slug(org_slug, diagram)
+    parent_uuid = resolve_diagram_slug(org_slug, parent_diagram)
+    node_uuid = resolve_node_slug(org_slug, node)
+
+    result = _rpc(
+        "CreateParentDiagram",
+        {
+            "orgId": org_uuid,
+            "diagramId": diagram_uuid,
+            "nodeId": node_uuid,
+            "parentDiagramId": parent_uuid,
+        },
+        api_key,
+    )
+
+    link = result.get("link", result)
+    return {
+        "id": link.get("id"),
+        "node": node,
+        "from_diagram": parent_diagram,
+        "to_diagram": diagram,
+    }
+
+
+@mcp.tool
+def create_child_diagram(
+    ctx: Context,
+    api_key: str,
+    diagram: str,
+    node: str,
+    child_diagram: str,
+) -> dict:
+    """
+    Link an existing node on the current diagram to a child diagram.
+    The node must already be placed on the current diagram.
+
+    Args:
+        api_key: tlDiagram API key (diag_sk_<hex>)
+        diagram: The parent diagram (the one you are currently in).
+        node: The node identifier on the current diagram.
+        child_diagram: The child diagram identifier to link to.
+
+    Returns:
+        A dict with link details.
+    """
+    token_data = auth.verify_token(api_key)
+    if not isinstance(token_data, dict):
+        raise RuntimeError("Unauthorized: invalid API key.")
+
+    org_uuid, org_slug = str(token_data.get("org_uuid")), str(token_data.get("org_slug"))
+    diagram_uuid = resolve_diagram_slug(org_slug, diagram)
+    child_uuid = resolve_diagram_slug(org_slug, child_diagram)
+    node_uuid = resolve_node_slug(org_slug, node)
+
+    result = _rpc(
+        "CreateChildDiagram",
+        {
+            "orgId": org_uuid,
+            "diagramId": diagram_uuid,
+            "nodeId": node_uuid,
+            "childDiagramId": child_uuid,
+        },
+        api_key,
+    )
+
+    link = result.get("link", result)
+    return {
+        "id": link.get("id"),
+        "node": node,
+        "from_diagram": diagram,
+        "to_diagram": child_diagram,
     }
 
 
