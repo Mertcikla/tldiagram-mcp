@@ -436,13 +436,7 @@ def connect_nodes(
 
 
 @mcp.tool
-def create_parent_diagram(
-    ctx: Context,
-    api_key: str,
-    diagram: str,
-    node: str,
-    parent_diagram: str,
-) -> dict:
+def create_parent_diagram(ctx: Context, api_key: str, diagram: str, node: str, parent_diagram: str) -> dict:
     """
     Link an existing node on a parent diagram to the current diagram.
     The node must already be placed on the parent diagram.
@@ -465,34 +459,14 @@ def create_parent_diagram(
     parent_uuid = resolve_diagram_slug(org_slug, parent_diagram)
     node_uuid = resolve_node_slug(org_slug, node)
 
-    result = _rpc(
-        "CreateParentDiagram",
-        {
-            "orgId": org_uuid,
-            "diagramId": diagram_uuid,
-            "nodeId": node_uuid,
-            "parentDiagramId": parent_uuid,
-        },
-        api_key,
-    )
+    result = _rpc("CreateParentDiagram", {"orgId": org_uuid, "diagramId": diagram_uuid, "nodeId": node_uuid, "parentDiagramId": parent_uuid}, api_key)
 
     link = result.get("link", result)
-    return {
-        "id": link.get("id"),
-        "node": node,
-        "from_diagram": parent_diagram,
-        "to_diagram": diagram,
-    }
+    return {"id": link.get("id"), "node": node, "from_diagram": parent_diagram, "to_diagram": diagram}
 
 
 @mcp.tool
-def create_child_diagram(
-    ctx: Context,
-    api_key: str,
-    diagram: str,
-    node: str,
-    child_diagram: str,
-) -> dict:
+def create_child_diagram(ctx: Context, api_key: str, diagram: str, node: str, child_diagram: str) -> dict:
     """
     Link an existing node on the current diagram to a child diagram.
     The node must already be placed on the current diagram.
@@ -515,24 +489,10 @@ def create_child_diagram(
     child_uuid = resolve_diagram_slug(org_slug, child_diagram)
     node_uuid = resolve_node_slug(org_slug, node)
 
-    result = _rpc(
-        "CreateChildDiagram",
-        {
-            "orgId": org_uuid,
-            "diagramId": diagram_uuid,
-            "nodeId": node_uuid,
-            "childDiagramId": child_uuid,
-        },
-        api_key,
-    )
+    result = _rpc("CreateChildDiagram", {"orgId": org_uuid, "diagramId": diagram_uuid, "nodeId": node_uuid, "childDiagramId": child_uuid}, api_key)
 
     link = result.get("link", result)
-    return {
-        "id": link.get("id"),
-        "node": node,
-        "from_diagram": diagram,
-        "to_diagram": child_diagram,
-    }
+    return {"id": link.get("id"), "node": node, "from_diagram": diagram, "to_diagram": child_diagram}
 
 
 @mcp.prompt(name="create_codebase_diagram", description="Create a diagram based on the structure of a code repository.")
