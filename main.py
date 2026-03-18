@@ -116,7 +116,7 @@ auth = DiagAPIKeyVerifier()
 # ── Server ─────────────────────────────────────────────────────────────────────
 
 mcp = FastMCP(
-    "diag",
+    "tlDiagram",
     instructions="""
 tlDiagram is a C4-inspired interactive software architecture diagramming tool.
 
