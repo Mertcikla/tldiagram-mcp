@@ -2,26 +2,25 @@
 
 Requires:
   - Diag backend + Redis running
-  - DEV_KEY env var set to a valid diag_sk_<hex> API key
+  - DEV_KEY env var set to a valid tld_<hex> API key
   - DIAG_BASE_URL env var (defaults to http://localhost:8080)
 
 Run:
-  DEV_KEY=diag_sk_... uv run pytest tests/test_integration.py -v
+  DEV_KEY=tld_... uv run pytest tests/test_integration.py -v
 """
 
 import os
 import time
-import pytest
 from unittest.mock import MagicMock
 
 import httpx
+import pytest
 
 # Ensure REDIS_HOST defaults to localhost for local test runs
 os.environ.setdefault("REDIS_HOST", "localhost")
 
-from main import create_diagram, add_node, connect_nodes, auth as mcp_auth, DIAG_BASE_URL
-from main import _get_redis, _diagram_key, _node_key
-
+from main import DIAG_BASE_URL, _diagram_key, _get_redis, _node_key, add_node, connect_nodes, create_diagram
+from main import auth as mcp_auth
 
 DEV_KEY = os.environ.get("DEV_KEY", "")
 DIAG_USERNAME = os.environ.get("DIAG_USERNAME", "admin")
@@ -94,19 +93,13 @@ class TestCreateDiagram:
         assert result["name"] == name
 
     def test_optional_fields_returned(self, api_key):
-        result = create_diagram(
-            _ctx(),
-            api_key=api_key,
-            name=f"Full Diagram {int(time.time())}",
-            description="desc",
-            level_label="Package",
-        )
+        result = create_diagram(_ctx(), api_key=api_key, name=f"Full Diagram {int(time.time())}", description="desc", level_label="Package")
         assert result["description"] == "desc"
         assert result["level_label"] == "Package"
 
     def test_invalid_key_raises(self):
         with pytest.raises(RuntimeError, match="Unauthorized"):
-            create_diagram(_ctx(), api_key="diag_sk_invalid", name="Should Fail")
+            create_diagram(_ctx(), api_key="tld_invalid", name="Should Fail")
 
     def test_diagram_persisted_in_db(self, api_key, rest_client):
         """Verify the diagram is actually written to the database."""
@@ -132,14 +125,7 @@ class TestAddNode:
 
     def test_optional_fields_returned(self, api_key, diagram_slug):
         result = add_node(
-            _ctx(),
-            api_key=api_key,
-            diagram=diagram_slug,
-            name="API Gateway",
-            type="component",
-            description="Routes requests",
-            technology="Go",
-            tags=["backend", "critical"],
+            _ctx(), api_key=api_key, diagram=diagram_slug, name="API Gateway", type="component", description="Routes requests", technology="Go", tags=["backend", "critical"]
         )
         assert result["description"] == "Routes requests"
         assert result["technology"] == "Go"
@@ -150,7 +136,7 @@ class TestAddNode:
 
     def test_invalid_key_raises(self, diagram_slug):
         with pytest.raises(RuntimeError, match="Unauthorized"):
-            add_node(_ctx(), api_key="diag_sk_invalid", diagram=diagram_slug, name="X", type="system")
+            add_node(_ctx(), api_key="tld_invalid", diagram=diagram_slug, name="X", type="system")
 
     def test_node_persisted_in_db(self, api_key, diagram_slug, rest_client):
         """Verify the node (object + diagram placement) is actually written to the database."""
@@ -173,14 +159,7 @@ class TestConnectNodes:
 
     def test_returns_edge_details(self, api_key, diagram_slug, two_nodes):
         src_slug, tgt_slug = two_nodes
-        result = connect_nodes(
-            _ctx(),
-            api_key=api_key,
-            diagram=diagram_slug,
-            source_node=src_slug,
-            target_node=tgt_slug,
-            label="calls",
-        )
+        result = connect_nodes(_ctx(), api_key=api_key, diagram=diagram_slug, source_node=src_slug, target_node=tgt_slug, label="calls")
         assert result["diagram"] == diagram_slug
         assert result["source_node"] == src_slug
         assert result["target_node"] == tgt_slug
@@ -188,51 +167,25 @@ class TestConnectNodes:
 
     def test_direction_forward(self, api_key, diagram_slug, two_nodes):
         src_slug, tgt_slug = two_nodes
-        result = connect_nodes(
-            _ctx(),
-            api_key=api_key,
-            diagram=diagram_slug,
-            source_node=src_slug,
-            target_node=tgt_slug,
-            direction="forward",
-        )
+        result = connect_nodes(_ctx(), api_key=api_key, diagram=diagram_slug, source_node=src_slug, target_node=tgt_slug, direction="forward")
         assert result["direction"] == "forward"
 
     def test_invalid_node_raises(self, api_key, diagram_slug, two_nodes):
         src_slug, _ = two_nodes
         with pytest.raises(RuntimeError):
-            connect_nodes(
-                _ctx(),
-                api_key=api_key,
-                diagram=diagram_slug,
-                source_node=src_slug,
-                target_node="nonexistent-node-slug",
-            )
+            connect_nodes(_ctx(), api_key=api_key, diagram=diagram_slug, source_node=src_slug, target_node="nonexistent-node-slug")
 
     def test_invalid_key_raises(self, diagram_slug, two_nodes):
         src_slug, tgt_slug = two_nodes
         with pytest.raises(RuntimeError, match="Unauthorized"):
-            connect_nodes(
-                _ctx(),
-                api_key="diag_sk_invalid",
-                diagram=diagram_slug,
-                source_node=src_slug,
-                target_node=tgt_slug,
-            )
+            connect_nodes(_ctx(), api_key="tld_invalid", diagram=diagram_slug, source_node=src_slug, target_node=tgt_slug)
 
     def test_edge_persisted_in_db(self, api_key, diagram_slug, rest_client):
         """Verify the edge is actually written to the database."""
         src = add_node(_ctx(), api_key=api_key, diagram=diagram_slug, name=f"Edge Src {int(time.time())}", type="system")
         tgt = add_node(_ctx(), api_key=api_key, diagram=diagram_slug, name=f"Edge Tgt {int(time.time())}", type="system")
         label = f"db-verify-{int(time.time())}"
-        connect_nodes(
-            _ctx(),
-            api_key=api_key,
-            diagram=diagram_slug,
-            source_node=src["node"],
-            target_node=tgt["node"],
-            label=label,
-        )
+        connect_nodes(_ctx(), api_key=api_key, diagram=diagram_slug, source_node=src["node"], target_node=tgt["node"], label=label)
 
         diagram_uuid = _resolve_diagram_uuid(api_key, diagram_slug)
         resp = rest_client.get(f"/api/diagrams/{diagram_uuid}/edges")

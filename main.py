@@ -5,8 +5,8 @@ Exposes the DiagramService gRPC API (via ConnectRPC JSON protocol) as MCP tools
 so LLMs can programmatically create architecture diagrams, add nodes, and connect them.
 
 Authentication:
-  Clients must supply a Diag API key (diag_sk_<hex>) as a Bearer token:
-    Authorization: Bearer diag_sk_<hex>
+  Clients must supply a Diag API key (tld_<hex>) as a Bearer token:
+      Authorization: Bearer tld_<hex>
 
   On the first request the server validates the key against the Diag REST API
   (/api/org) and caches the resolved organisation UUID, slug, and token in
@@ -69,7 +69,7 @@ def _org_token_key(org_uuid: str) -> str:
 
 
 class DiagAPIKeyVerifier:
-    """Validates Diag API keys (diag_sk_<hex>) by calling /api/org.
+    """Validates Diag API keys (tld_<hex>) by calling /api/org.
 
     Valid keys are cached in Redis so repeated requests do not incur extra
     network calls.  The resolved org UUID becomes the AccessToken.client_id,
@@ -262,7 +262,7 @@ def create_diagram(ctx: Context, api_key: str, name: str, description: Optional[
     Create a new diagram (canvas) in the organisation associated with the API key.
 
     Args:
-        api_key: tlDiagram API key (diag_sk_<hex>)
+        api_key: tlDiagram API key (tld_<hex>)
         name: Human-readable name of the diagram (e.g. "Core", "Data Ingestion").
         description: Optional longer description of what this diagram represents.
         level_label: Optional abstraction level (e.g. "Package", "Class", "Library", "Component", "Framework").
@@ -321,7 +321,7 @@ def add_node(
     At low level these could be a Variable, Constant, Data Structure, Queue, Field, Endpoint
 
     Args:
-        api_key: tlDiagram API key (diag_sk_<hex>)
+        api_key: tlDiagram API key (tld_<hex>)
         diagram: Target diagram. Obtain from create_diagram().
         name: Human-readable, recognizable identifier of this node. Required.
         type: Node type: "class", "function", "module", "method", "database",
@@ -386,7 +386,7 @@ def connect_nodes(
     Both nodes must already exist on the diagram (added via add_node).
 
     Args:
-        api_key: tlDiagram API key (diag_sk_<hex>)
+        api_key: tlDiagram API key (tld_<hex>)
         diagram: The diagram containing both nodes.
         source_node: Source node identifier (from add_node).
         target_node: Target node identifier (from add_node).
@@ -442,7 +442,7 @@ def create_parent_diagram(ctx: Context, api_key: str, diagram: str, node: str, p
     The node must already be placed on the parent diagram.
 
     Args:
-        api_key: tlDiagram API key (diag_sk_<hex>)
+        api_key: tlDiagram API key (tld_<hex>)
         diagram: The child diagram (the one you are currently linking to).
         node: The node identifier on the parent diagram.
         parent_diagram: The parent diagram identifier.
@@ -472,7 +472,7 @@ def create_child_diagram(ctx: Context, api_key: str, diagram: str, node: str, ch
     The node must already be placed on the current diagram.
 
     Args:
-        api_key: tlDiagram API key (diag_sk_<hex>)
+        api_key: tlDiagram API key (tld_<hex>)
         diagram: The parent diagram (the one you are currently in).
         node: The node identifier on the current diagram.
         child_diagram: The child diagram identifier to link to.
@@ -497,7 +497,7 @@ def create_child_diagram(ctx: Context, api_key: str, diagram: str, node: str, ch
 
 @mcp.prompt(name="create_codebase_diagram", description="Create a diagram based on the structure of a code repository.")
 def create_codebase_diagram(
-    repo_path: str = Field(description="Local or remote path to the code repository."), api_key: str = Field(description="tlDiagram API key (diag_sk_<hex>)")
+    repo_path: str = Field(description="Local or remote path to the code repository."), api_key: str = Field(description="tlDiagram API key (tld_<hex>)")
 ) -> str:
     instruction = f"""
     # Role:
