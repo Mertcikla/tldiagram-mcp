@@ -55,7 +55,7 @@ def _get_redis() -> redis_lib.Redis:
 #   diag:verified:{sha256(token)}   → org_uuid
 #   diag:org_token:{org_uuid}       → raw API key (used for upstream RPC calls)
 #
-# Bidirectional org slug cache (no expiry — stable IDs):
+# Bidirectional org slug cache (no expiry - stable IDs):
 #   diag:org:slug:{slug}            → org_uuid
 #   diag:org:uuid:{org_uuid}        → org_slug
 
@@ -122,11 +122,11 @@ tlDiagram is a C4-inspired interactive software architecture diagramming tool.
 
 ## Available tools
 
-- **create_diagram** — Create a new diagram canvas. Returns a diagram slug.
-- **add_node** — Place an architectural component on a diagram. Returns a node_slug.
-- **connect_nodes** — Draw a directed edge between two nodes on the same diagram.
-- **create_parent_diagram** — Link a node on a parent diagram to the current diagram.
-- **create_child_diagram** — Link a node on the current diagram to a child diagram.
+- **create_diagram** - Create a new diagram canvas. Returns a diagram slug.
+- **add_node** - Place an architectural component on a diagram. Returns a node_slug.
+- **connect_nodes** - Draw a directed edge between two nodes on the same diagram.
+- **create_parent_diagram** - Link a node on a parent diagram to the current diagram.
+- **create_child_diagram** - Link a node on the current diagram to a child diagram.
 
 ## Typical workflow
 
@@ -142,10 +142,10 @@ Common values for the `type` parameter: "class", "function", "module", "method",
 
 ## Edge directions
 
-- "forward" (default) — arrow points from source to target
-- "backward" — arrow points from target to source
-- "both" — bidirectional arrow
-- "none" — no arrowhead
+- "forward" (default) - arrow points from source to target
+- "backward" - arrow points from target to source
+- "both" - bidirectional arrow
+- "none" - no arrowhead
 
 """,
 )
@@ -521,7 +521,7 @@ def create_codebase_diagram(
     Produce 5–25 topological diagrams (one per key flow or responsibility) that help any new team member understand the real core of our codebase in under 5 minutes.
     Start with the highest-level, most abstract diagrams (e.g. main user flow, core microservices, critical domain).
     Cluster the complex systems into at max 20 nodes. Then create a separate diagram with same object to drill down into details.
-    Focus exclusively on crucial objects — business logic, main data flows, key decisions, public APIs, and critical integrations.
+    Focus exclusively on crucial objects - business logic, main data flows, key decisions, public APIs, and critical integrations.
     Ignore everything else: no logging, no config files, no error handlers, no tests, no boilerplate, no generated code.
 
     Choose 1–10 Root-Level Diagrams. Decide on the number based on the complexity of the system and how many distinct "views" are needed to cover the essentials.
